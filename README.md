@@ -1,5 +1,4 @@
-`example.c` file is not functional, it's just been taken from my
-working project and striped off parts. I has not been compiled.
+This example is working with broker aaaa::1 and just subscribe is implemented on example.
 
 
 MQTT client library for Contiki
