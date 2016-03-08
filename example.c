@@ -55,7 +55,7 @@
 #include "dev/leds.h"
 #include "dev/sys-ctrl.h"
 #include "pwm.h"
-
+#include "pwm_dimmer.h"
 #include <string.h>
 /*---------------------------------------------------------------------------*/
 /*
@@ -66,14 +66,6 @@
 * Alternatively, publish to a local MQTT broker (e.g. mosquitto) running on
 * the node that hosts your border router
 */
-#define MQTT_DEMO_BROKER_IP_ADDR "aaaa::1"
-#ifdef MQTT_DEMO_BROKER_IP_ADDR
-static const char *broker_ip = MQTT_DEMO_BROKER_IP_ADDR;
-#define DEFAULT_ORG_ID              "mqtt-demo"
-#else
-static const char *broker_ip = "aaaa::1";
-#define DEFAULT_ORG_ID              "AWGES-BOARD2"
-#endif
 /*---------------------------------------------------------------------------*/
 /*
 * A timeout used when waiting for something to happen (e.g. to connect or to
@@ -98,11 +90,11 @@ static const char *broker_ip = "aaaa::1";
 */
 #define RECONNECT_ATTEMPTS         RETRY_FOREVER
 #define CONNECTION_STABLE_TIME     (CLOCK_SECOND * 5)
-static struct timer connection_life;
-static uint8_t connect_attempt;
+// static struct timer connection_life;
+// static uint8_t connect_attempt;
 /*---------------------------------------------------------------------------*/
 /* Various states */
-static uint8_t state;
+// static uint8_t state;
 #define STATE_INIT            0
 #define STATE_REGISTERED      1
 #define STATE_CONNECTING      2
@@ -168,44 +160,10 @@ typedef struct mqtt_client_config {
 /*---------------------------------------------------------------------------*/
 #define STATUS_LED LEDS_GREEN
 /*---------------------------------------------------------------------------*/
-/*
-* Buffers for Client ID and Topic.
-* Make sure they are large enough to hold the entire respective string
-*
-* d:quickstart:status:EUI64 is 32 bytes long
-* iot-2/evt/status/fmt/json is 25 bytes
-* We also need space for the null termination
-*/
-#define BUFFER_SIZE 64
-static char client_id[BUFFER_SIZE];
-static char pub_topic[BUFFER_SIZE];
-static char sub_topic[BUFFER_SIZE];
-/*---------------------------------------------------------------------------*/
-/*
-* The main MQTT buffers.
-* We will need to increase if we start publishing more data.
-*/
-#define APP_BUFFER_SIZE 512
-static struct mqtt_connection conn;
-static char app_buffer[APP_BUFFER_SIZE];
-/*---------------------------------------------------------------------------*/
-#define QUICKSTART "quickstart"
-/*---------------------------------------------------------------------------*/
-static struct mqtt_message *msg_ptr = 0;
-static struct etimer publish_periodic_timer;
-static struct ctimer ct;
-static char *buf_ptr;
-static uint16_t seq_nr_value = 0;
-/*---------------------------------------------------------------------------*/
-/* Parent RSSI functionality */
-static struct uip_icmp6_echo_reply_notification echo_reply_notification;
-static struct etimer echo_request_timer;
-static int def_rt_rssi = 0;
-/*---------------------------------------------------------------------------*/
-static mqtt_client_config_t conf;
 /*---------------------------------------------------------------------------*/
 PROCESS(mqtt_demo_process, "MQTT AWGES-TEST");
-/*---------------------------------------------------------------------------*/
+PROCESS(cc2538_pwm_test, "cc2538-pwm");
+
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(mqtt_demo_process, ev, data)
 {
@@ -242,6 +200,10 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
 
 	PROCESS_BEGIN();
 
+char testing  = 0x01;
+pwm_init();
+
+process_start(&cc2538_pwm_test, (char*) &testing);
 	// Set the server address
 	uip_ip6addr(&server_address,
 	0xaaaa, 0, 0, 0, 0, 0, 0, 0x1);
@@ -289,6 +251,9 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
 
 					printf("mqtt_client: Data received: %s, %s.\n\r", topic, message);
 					
+					pwm_init();
+					
+					
 							//watchdog_start();
 							//while (1);
 				}
@@ -319,7 +284,6 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
 						PROCESS_WAIT_EVENT_UNTIL(ev == mqtt_event);
 					}
 				}	
-			
 			}
 		}
 		
@@ -328,3 +292,33 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
 		
 	}
 }
+
+PROCESS_THREAD(cc2538_pwm_test, ev, data)
+{
+  PROCESS_BEGIN();
+    for (duty=0 ; duty<100; duty+= 2) {
+        if(pwm_enable(pwm_num.freq, duty,
+                      pwm_num.timer, pwm_num.ab) == PWM_SUCCESS) {
+            pwm_en = 1;
+            PRINTF("%s (%u) configuration OK\n\r", gpt_name(pwm_num.timer),
+                   pwm_num.ab);
+
+        }
+
+        if((pwm_en) &&
+                (pwm_start(pwm_num.timer, pwm_num.ab,
+                           pwm_num.port, pwm_num.pin) != PWM_SUCCESS)) {
+            pwm_en = 0;
+            PRINTF("%s (%u) failed to start \n\r", gpt_name(pwm_num.timer),
+                   pwm_num.ab);
+
+        }
+                etimer_set(&et_pwm,CLOCK_SECOND* 1);
+                PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_pwm));
+                PRINTF("testing duty: %d \n\r", duty);
+    }
+    etimer_set(&et_pwm, 100);
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_pwm));
+      PROCESS_END();
+}
+
