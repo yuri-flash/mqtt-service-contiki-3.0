@@ -56,10 +56,6 @@
 #include "dev/sys-ctrl.h"
 #include "pwm.h"
 
-//#include "dev/cc2538-sensors.h"
-
-// #include "lightDNA.h"
-// #include "dimmer_PWM.h"
 #include <string.h>
 /*---------------------------------------------------------------------------*/
 /*
@@ -245,41 +241,6 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
 	};
 
 	PROCESS_BEGIN();
-
-
-
-
-
-
-
-
-
- /* Enable module clock for the GPTx in Active mode */
-  REG(SYS_CTRL_RCGCGPT) |= SYS_CTRL_RCGCGPT_GPT2;
-  /* Stop the timer */
-  REG(GPT_2_BASE + GPTIMER_CTL) = 0;
-  /* Use 16-bit timer */
-  REG(GPT_2_BASE + GPTIMER_CFG) = 0x04;
-  /* Configure PWM mode */
-  REG(GPT_2_BASE + GPTIMER_TAMR) = 0;
-  REG(GPT_2_BASE + GPTIMER_TAMR) |= GPTIMER_TAMR_TAAMS;
-  REG(GPT_2_BASE + GPTIMER_TAMR) |= GPTIMER_TAMR_TAMR_PERIODIC;
-  /* Set the start value (period), count down */
-  REG(GPT_2_BASE+ GPTIMER_TAILR) = 0x1A5;
-  /* Set the deassert period */
-  REG(GPT_2_BASE + GPTIMER_TAMATCHR) = 0xD3;
-  /* Configure pin */
-  ioc_set_sel(GPIO_C_NUM, 7, IOC_PXX_SEL_GPT2_ICP1);
-  ioc_set_over(GPIO_C_NUM, 7, IOC_OVERRIDE_OE);
-  GPIO_PERIPHERAL_CONTROL(GPIO_PORT_TO_BASE(GPIO_C_NUM), GPIO_PIN_MASK(7));
-  /* Enable */
-  REG(GPTIMER_CTL + GPT_2_BASE ) |= GPTIMER_CTL_TAEN;
-
-
-
-
-
-
 
 	// Set the server address
 	uip_ip6addr(&server_address,
