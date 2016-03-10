@@ -71,6 +71,6 @@ static struct etimer et_pwm;
 uint8_t duty;
 
 
-
+void pwm_init(void);
 
 #endif /* PWM_DIMMMER */

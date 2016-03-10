@@ -1,20 +1,12 @@
+DEFINES+=PROJECT_CONF_H=\"project-conf.h\"	
 PROJECT?=example
 
 all: $(PROJECT)
 
-APPS += mqtt-service-contiki-3.0
-# mqtt-demo.c: led-dimmer-6ch-eeprom.h
+CONTIKI_WITH_IPV6 = 1
 
-# include ../../Makefile.include
-# # DEFINES+=PROJECT_CONF_H=\"project-conf.h\"
-#
-# all: mqtt-demo
-#
-# CONTIKI_WITH_IPV6 = 1
-# mqtt-service_src = mqtt-msg.c mqtt-service.c
-#
-# APPS += mqtt-service
-#
+APPS += mqtt-service-contiki-3.0
+
 CONTIKI = ../..
 include $(CONTIKI)/Makefile.include
 

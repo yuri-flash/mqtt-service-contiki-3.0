@@ -57,6 +57,8 @@
 #include "pwm.h"
 #include "pwm_dimmer.h"
 #include <string.h>
+
+#include "dev/cc2538-sensors.h"
 /*---------------------------------------------------------------------------*/
 /*
 * IBM server: messaging.quickstart.internetofthings.ibmcloud.com
@@ -200,10 +202,10 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
 
 	PROCESS_BEGIN();
 
-char testing  = 0x01;
-pwm_init();
-
-process_start(&cc2538_pwm_test, (char*) &testing);
+//char testing  = 0x01;
+//pwm_init();
+//process_start(&cc2538_pwm_test, (char*) &testing);
+	
 	// Set the server address
 	uip_ip6addr(&server_address,
 	0xaaaa, 0, 0, 0, 0, 0, 0, 0x1);
@@ -221,7 +223,19 @@ process_start(&cc2538_pwm_test, (char*) &testing);
 	if(mqtt_connected())
 	{
 		static int i;
-
+		static char message2[128];
+		mqtt_publish("awges", "Hello I'm 6LoWPAN board", 0, 1);
+		
+		/*while(1){
+		etimer_set(&et,CLOCK_SECOND * 0.1);
+		i++;
+		sprintf(message2, ",\"On-Chip Temp (mC)\":%d\n\r",cc2538_temp_sensor.value(CC2538_SENSORS_VALUE_TYPE_CONVERTED));
+					PRINTF("%s",message2);
+					
+					PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+					mqtt_publish("awges", message2, 0, 1);
+		}*/
+		
 		for(i = 0; topics[i] != NULL; ++i)
 		{
 			// Ask the client to subscribe to the topic
@@ -234,7 +248,7 @@ process_start(&cc2538_pwm_test, (char*) &testing);
 		while(1)
 		{
 			PROCESS_WAIT_EVENT_UNTIL(ev == mqtt_event || ev == PROCESS_EVENT_TIMER);
-			printf("PROCESS_WAIT_EVENT_UNTIL: %d.\n\r",((mqtt_event_data_t*)data)->type);
+			PRINTF("PROCESS_WAIT_EVENT_UNTIL: %d.\n\r",((mqtt_event_data_t*)data)->type);
 
 			if (ev == mqtt_event)
 			{
@@ -248,23 +262,26 @@ process_start(&cc2538_pwm_test, (char*) &testing);
 
 					strncpy(message, mqtt_event_get_data(data), mqtt_event_get_data_length(data));
 					message[mqtt_event_get_data_length(data)] = 0;
+					
+					PRINTF("mqtt_client: Data received: %s, %s.\n\r", topic, message);
+					
+					
+					//sprintf(message, ",\"On-Chip Temp (mC)\":%d\n\r",cc2538_temp_sensor.value(CC2538_SENSORS_VALUE_TYPE_CONVERTED));
+					
+					PRINTF("%s","I'm alive!");
+					etimer_set(&et,CLOCK_SECOND * 0.5);
+					PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+					mqtt_publish("awges", "I'm alive!", 0, 1);
 
-					printf("mqtt_client: Data received: %s, %s.\n\r", topic, message);
-					
-					pwm_init();
-					
-					
-							//watchdog_start();
-							//while (1);
 				}
 				else if (mqtt_event_is_receive_data_continuation(data))
 				{
 					const char* message = mqtt_event_get_data(data);
-					printf("mqtt_client:                %s.\n\r", message);
+					PRINTF("mqtt_client:                %s.\n\r", message);
 				}
 				else if(mqtt_event_is_disconnected(data))
 				{ 
-					printf("processo 1\n\r");
+					PRINTF("processo 1\n\r");
 					uip_ip6addr(&server_address,
 						0xaaaa, 0, 0, 0, 0, 0, 0, 0x1);
 					mqtt_reconfigure(&server_address, UIP_HTONS(1883),
@@ -274,7 +291,7 @@ process_start(&cc2538_pwm_test, (char*) &testing);
 				}
 				else if (mqtt_event_is_connected(data))
 				{
-					printf("processo 2\n\r");
+					PRINTF("processo 2\n\r");
 					while (!mqtt_connected());
 					for(i = 0; topics[i] != NULL; ++i)
 					{
@@ -287,7 +304,7 @@ process_start(&cc2538_pwm_test, (char*) &testing);
 			}
 		}
 		
-		printf("mqtt service connect failed\n\r");
+		PRINTF("mqtt service connect failed\n\r");
 		PROCESS_END();
 		
 	}
