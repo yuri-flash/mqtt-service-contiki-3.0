@@ -16,7 +16,7 @@
 #include "sys/ctimer.h"
 
 /*---------------------------------------------------------------------------*/
-#define DEBUG 1
+//#define DEBUG 1
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #else

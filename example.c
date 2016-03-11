@@ -156,6 +156,8 @@ typedef struct mqtt_client_config {
 	int def_rt_ping_interval;
 	uint16_t broker_port;
 } mqtt_client_config_t;
+
+uint8_t new_duty_cilce  = 30;
 /*---------------------------------------------------------------------------*/
 /* Maximum TCP segment size for outgoing segments of our socket */
 #define MAX_TCP_SEGMENT_SIZE    32
@@ -197,15 +199,18 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
 	// The list of topics that we want to subscribe to
 	static const char* topics[] =
 	{
-		"awges", "yuriar", NULL
+		"lights", "lights/3206", NULL
 	};
 
 	PROCESS_BEGIN();
-
-//char testing  = 0x01;
-//pwm_init();
-//process_start(&cc2538_pwm_test, (char*) &testing);
 	
+/**************************************************/
+
+	pwm_init();
+	process_start(&cc2538_pwm_test,NULL);
+	
+/*************************************************/
+
 	// Set the server address
 	uip_ip6addr(&server_address,
 	0xaaaa, 0, 0, 0, 0, 0, 0, 0x1);
@@ -224,17 +229,8 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
 	{
 		static int i;
 		static char message2[128];
-		mqtt_publish("awges", "Hello I'm 6LoWPAN board", 0, 1);
-		
-		/*while(1){
-		etimer_set(&et,CLOCK_SECOND * 0.1);
-		i++;
-		sprintf(message2, ",\"On-Chip Temp (mC)\":%d\n\r",cc2538_temp_sensor.value(CC2538_SENSORS_VALUE_TYPE_CONVERTED));
-					PRINTF("%s",message2);
-					
-					PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-					mqtt_publish("awges", message2, 0, 1);
-		}*/
+
+		mqtt_publish("lights/3206", "Hello AWGES DEV: 3206 MAC: 32-06", 0, 1);
 		
 		for(i = 0; topics[i] != NULL; ++i)
 		{
@@ -254,24 +250,73 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
 			{
 				if (mqtt_event_is_receive_data(data))
 				{
-					static char topic[128];
-					static char message[128];
+					static char topic[64];
+					static char message[64];
+					static char write_command[4];
+					static const char topic_out[64];
+					static const char message_out[64];
 
 					strncpy(topic, mqtt_event_get_topic(data), mqtt_event_get_topic_length(data));
-					topic[mqtt_event_get_topic_length(data)] = 0;
+					topic[mqtt_event_get_topic_length(data)] = '\0';
 
 					strncpy(message, mqtt_event_get_data(data), mqtt_event_get_data_length(data));
-					message[mqtt_event_get_data_length(data)] = 0;
+					message[mqtt_event_get_data_length(data)] = '\0';
 					
 					PRINTF("mqtt_client: Data received: %s, %s.\n\r", topic, message);
 					
-					
-					//sprintf(message, ",\"On-Chip Temp (mC)\":%d\n\r",cc2538_temp_sensor.value(CC2538_SENSORS_VALUE_TYPE_CONVERTED));
-					
+					PRINTF("message: %s\n\n\r",message);
+						
+					if (message[0] == 'R'){
+						int command = (int)atoi(message+1);
+						
+						switch((int)atoi(message+1)){
+							case 1:
+								sprintf(topic_out, "lights/3206/dimmer");
+								sprintf(message_out, "%d%", new_duty_cilce);
+								PRINTF("comendo de leitura recebida: %d\n\r", atoi(message+1));
+								break;
+							case 2:
+								sprintf(topic_out, "lights/3206/dimmer");
+								sprintf(message_out, "%d458mA", new_duty_cilce);
+								break;
+							case 3:
+							
+								break;
+							case 4:
+							
+								break;
+							case 5:
+							
+								break;
+							default:
+								PRINTF("comendo de leitura recebida: %d", atoi(message+1));
+						}
+					}
+					else if(message[0] == 'W')
+					{
+						memcpy(write_command,(message+1),4);
+						write_command[4] = '\0';
+						PRINTF("write commmand : %s\n\n\r",write_command);
+						
+						switch((int)atoi(write_command)){//6
+							case 1:
+								PRINTF("valor do dimmer: %s",message+6);
+								new_duty_cilce = (uint8_t)atoi(message+6);
+								//process_start(&cc2538_pwm_test,NULL);
+								process_post_synch(&cc2538_pwm_test,ev, data);
+								break;
+							case 2:
+							
+								break;
+							default:
+								PRINTF("comendo de leitura recebida: %d", atoi(message+1));
+						}
+					}	
+
 					PRINTF("%s","I'm alive!");
 					etimer_set(&et,CLOCK_SECOND * 0.5);
 					PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-					mqtt_publish("awges", "I'm alive!", 0, 1);
+					mqtt_publish(topic_out, message_out, 0, 1);
 
 				}
 				else if (mqtt_event_is_receive_data_continuation(data))
@@ -312,30 +357,51 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
 
 PROCESS_THREAD(cc2538_pwm_test, ev, data)
 {
-  PROCESS_BEGIN();
-    for (duty=0 ; duty<100; duty+= 2) {
-        if(pwm_enable(pwm_num.freq, duty,
-                      pwm_num.timer, pwm_num.ab) == PWM_SUCCESS) {
-            pwm_en = 1;
-            PRINTF("%s (%u) configuration OK\n\r", gpt_name(pwm_num.timer),
-                   pwm_num.ab);
 
-        }
+	PROCESS_BEGIN();
+	
+	while(1)
+	{
 
-        if((pwm_en) &&
-                (pwm_start(pwm_num.timer, pwm_num.ab,
-                           pwm_num.port, pwm_num.pin) != PWM_SUCCESS)) {
-            pwm_en = 0;
-            PRINTF("%s (%u) failed to start \n\r", gpt_name(pwm_num.timer),
-                   pwm_num.ab);
+		etimer_set(&et_pwm,CLOCK_SECOND* 0.1);
+						PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_pwm));
+						PRINTF("testing duty: %d \n\r", duty);
+						
+		if (new_duty_cilce > 99) 
+			new_duty_cilce = 99;
+		
+		PRINTF("new duty cicle: %d\n\r", new_duty_cilce);
+		
+		while(new_duty_cilce != duty)
+		{
+			PRINTF("duty cicle: %d\n\r", duty);
+			if (new_duty_cilce > duty) 
+				duty++;
+			else 
+				duty--;
+			
+				if(pwm_enable(pwm_num.freq, duty,
+							  pwm_num.timer, pwm_num.ab) == PWM_SUCCESS) {
+					pwm_en = 1;
+					//PRINTF("%s (%u) configuration OK\n\r", gpt_name(pwm_num.timer),
+					//       pwm_num.ab);
 
-        }
-                etimer_set(&et_pwm,CLOCK_SECOND* 1);
-                PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_pwm));
-                PRINTF("testing duty: %d \n\r", duty);
-    }
-    etimer_set(&et_pwm, 100);
+				}
+
+				if((pwm_en) && (pwm_start(pwm_num.timer, pwm_num.ab,
+								   pwm_num.port, pwm_num.pin) != PWM_SUCCESS)) {
+					pwm_en = 0;
+					PRINTF("%s (%u) failed to start \n\r", gpt_name(pwm_num.timer),
+						   pwm_num.ab);
+
+				}
+				etimer_set(&et_pwm,CLOCK_SECOND* 0.02);
+				PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_pwm));
+				PRINTF("testing duty: %d \n\r", duty);
+			
+		}
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et_pwm));
-      PROCESS_END();
+	}
+    PROCESS_END();
 }
 

@@ -3,9 +3,10 @@
 
 void pwm_init(void)
 {
+	duty = 0;
     memset(pwm_en, 0, 1);
 
-    PRINTF("\nStarting the test\n");
+    PRINTF("\nStarting the PWM testing\n");
 
 }
 
